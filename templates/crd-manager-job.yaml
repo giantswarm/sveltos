@@ -1,0 +1,54 @@
+{{- if .Values.crdManagerJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crd-manager-job
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-upgrade,pre-rollback
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: {{ .Values.crdManagerJob.backoffLimit }}
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.crdManagerJob.crdManager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.crdManagerJob.crdManager) }}"
+        imagePullPolicy: {{ .Values.crdManagerJob.crdManager.imagePullPolicy
+          }}
+        name: crd-manager
+        resources: {{- toYaml .Values.crdManagerJob.crdManager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.crdManagerJob.crdManager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.crdManagerJob.crdManager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.crdManagerJob.crdManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.crdManagerJob.crdManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.crdManagerJob.crdManager.extraVolumes }}
+      volumes:
+    {{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      restartPolicy: OnFailure
+      serviceAccountName: crd-manager
+  ttlSecondsAfterFinished: 240
+{{- end }}

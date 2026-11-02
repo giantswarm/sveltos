@@ -1,0 +1,1427 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: addon-controller
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    control-plane: addon-controller
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+    {{- with .Values.addonController.labels }}
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    {{- with .Values.addonController.annotations }}
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: addon-controller
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: addon-controller
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.addonController.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.addonController.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.addonController.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.addonController) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+  {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.addonController.controller.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.addonController.controller.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+  {{- else }}
+      - args:
+      {{- range .Values.addonController.controller.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.addonController.controller.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+  {{- end }}
+  {{- if ne (len .Values.addonController.driftDetectionManagerPatchConfigMap.data) 0 }}
+        - --drift-detection-config={{ .Values.addonController.driftDetectionManagerPatchConfigMap.name }}
+  {{- end }}
+  {{- if .Values.telemetry.disabled }}
+    {{"-  --disable-telemetry=true" | nindent 8 }}
+  {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.addonController.controller.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.addonController.controller) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: controller
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.addonController.controller.resources | nindent 10
+          }}
+        securityContext: {{- toYaml .Values.addonController.controller.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        {{- with .Values.addonController.controller.extraVolumes }}
+      {{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.addonController.podSecurityContext | nindent 8 }}
+      initContainers:
+  {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.addonController.controller.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.addonController.controller.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+  {{- else }}
+      - args:
+      {{- range .Values.addonController.controller.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.addonController.controller.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+  {{- end }}
+  {{- if ne (len .Values.addonController.driftDetectionManagerPatchConfigMap.data) 0 }}
+        - --drift-detection-config={{ .Values.addonController.driftDetectionManagerPatchConfigMap.name }}
+  {{- end }}
+  {{- if .Values.telemetry.disabled }}
+    {{"-  --disable-telemetry=true" | nindent 8 }}
+  {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: IS_INITIALIZATION
+          value: "true"
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.addonController.initialization) }}"
+        name: initialization
+        resources: {{- toYaml .Values.addonController.initialization.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.addonController.initialization.containerSecurityContext | nindent 10 }}
+      serviceAccountName: addon-controller
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      {{- with .Values.addonController.controller.extraVolumes }}
+    {{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+{{ if .Values.accessManager.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access-manager
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.accessManager.manager.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: access-manager
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  {{- with .Values.accessManager.labels }}
+  {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: access-manager
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: access-manager
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.accessManager.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.accessManager.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.accessManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.accessManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+      - args:
+      {{- range .Values.accessManager.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.accessManager.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        command:
+        - /manager
+        env:
+        - name: TOTAL_MEMORY_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.accessManager.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.accessManager.manager) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.accessManager.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.accessManager.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.accessManager.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.accessManager.podSecurityContext | nindent 8 }}
+      {{- with .Values.accessManager.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: access-manager
+      terminationGracePeriodSeconds: 10
+{{ end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sc-manager
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.accessManager.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: sc-manager
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  {{- with .Values.scManager.labels }}
+  {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: sc-manager
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: sc-manager
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.scManager.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scManager.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.scManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+      - args:
+      {{- range .Values.scManager.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.scManager.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.scManager.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.scManager.manager) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.scManager.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.scManager.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.scManager.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.scManager.podSecurityContext | nindent 8 }}
+      {{- with .Values.scManager.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: sc-manager
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hc-manager
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.hcManager.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: hc-manager
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  {{- with .Values.hcManager.labels }}
+  {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: hc-manager
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: hc-manager
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.hcManager.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hcManager.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.hcManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.hcManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+  {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.hcManager.manager.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.hcManager.manager.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- else }}
+      - args:
+      {{- range .Values.hcManager.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.hcManager.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.hcManager.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.hcManager.manager) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.hcManager.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.hcManager.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.hcManager.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.hcManager.podSecurityContext | nindent 8 }}
+      {{- with .Values.hcManager.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: hc-manager
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: event-manager
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.eventManager.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: event-manager
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  {{- with .Values.eventManager.labels }}
+  {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: event-manager
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: event-manager
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.eventManager.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.eventManager.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.eventManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.eventManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+  {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.eventManager.manager.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.eventManager.manager.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- else }}
+      - args:
+      {{- range .Values.eventManager.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.eventManager.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.eventManager.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.eventManager.manager) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.eventManager.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.eventManager.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.eventManager.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.eventManager.podSecurityContext | nindent 8 }}
+      {{- with .Values.eventManager.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: event-manager
+      terminationGracePeriodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: classifier-manager
+  namespace: {{ .Release.Namespace | quote }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    {{- with .Values.classifierManager.annotations }}
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
+  labels:
+    control-plane: classifier
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+  {{- with .Values.classifierManager.labels }}
+  {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: classifier
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: classifier
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.classifierManager.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.classifierManager.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.classifierManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.classifierManager) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+    {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.classifierManager.manager.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.classifierManager.manager.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+    {{- else }}
+      - args:
+      {{- range .Values.classifierManager.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.classifierManager.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        - --registry={{ .Values.global.registry }}
+    {{- end }}
+    {{- if ne (len .Values.classifierManager.agentPatchConfigMap.data) 0 }}
+        - --sveltos-agent-config={{ .Values.classifierManager.agentPatchConfigMap.name }}
+    {{- end }}
+    {{- if ne (len .Values.classifierManager.agentPatchSveltosApplierConfigMap.data) 0 }}
+        - --sveltos-applier-config={{ .Values.classifierManager.agentPatchSveltosApplierConfigMap.name }}
+    {{- end }}
+    {{- if .Values.enableNatsWatcher }}
+        - --enable-nats-watcher=true
+    {{- end }}
+        - --capi-onboard-annotation={{ .Values.global.capiOnboardAnnotation }}
+        command:
+        - /manager
+        env:
+        - name: TOTAL_MEMORY_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.classifierManager.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.classifierManager.manager) }}"
+        imagePullPolicy: {{ .Values.classifierManager.manager.imagePullPolicy }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.classifierManager.manager.resources | nindent 10
+          }}
+        securityContext: {{- toYaml .Values.classifierManager.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.classifierManager.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      initContainers:
+      - command:
+        - /manager
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: IS_INITIALIZATION
+          value: "true"
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.classifierManager.manager) }}"
+        imagePullPolicy: {{ .Values.classifierManager.manager.imagePullPolicy }}
+        name: migrate
+        resources: {{- toYaml .Values.classifierManager.manager.resources | nindent 10
+          }}
+        securityContext: {{- toYaml .Values.classifierManager.manager.containerSecurityContext | nindent 10 }}
+      securityContext: {{- toYaml .Values.classifierManager.podSecurityContext | nindent 8 }}
+      {{- with .Values.classifierManager.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: classifier-manager
+      terminationGracePeriodSeconds: 10
+{{ if .Values.shardController.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shard-controller
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.shardController.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: shard-controller
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: shard-controller
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: shard-controller
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.shardController.labels }}
+      {{- range $key, $value := . }}
+        {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.shardController.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.shardController.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.shardController.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.shardController) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+  {{- if .Values.agent.managementCluster }}
+      - args:
+      {{- range .Values.shardController.manager.argsAgentMgmtCluster }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.shardController.manager.extraArgsAgentMgmtCluster }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- if ne (len .Values.addonController.driftDetectionManagerPatchConfigMap.data) 0 }}
+        - --drift-detection-config={{ .Values.addonController.driftDetectionManagerPatchConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.classifierManager.agentPatchConfigMap.data) 0 }}
+        - --sveltos-agent-config={{ .Values.classifierManager.agentPatchConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.classifierManager.agentPatchSveltosApplierConfigMap.data) 0 }}
+        - --sveltos-applier-config={{ .Values.classifierManager.agentPatchSveltosApplierConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.shardController.shardComponentsConfigMap.data) 0 }}
+        - --shard-components-config={{ .Values.shardController.shardComponentsConfigMap.name }}
+  {{- end }}
+  {{- else }}
+      - args:
+      {{- range .Values.shardController.manager.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.shardController.manager.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+  {{- if ne (len .Values.addonController.driftDetectionManagerPatchConfigMap.data) 0 }}
+        - --drift-detection-config={{ .Values.addonController.driftDetectionManagerPatchConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.classifierManager.agentPatchConfigMap.data) 0 }}
+        - --sveltos-agent-config={{ .Values.classifierManager.agentPatchConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.classifierManager.agentPatchSveltosApplierConfigMap.data) 0 }}
+        - --sveltos-applier-config={{ .Values.classifierManager.agentPatchSveltosApplierConfigMap.name }}
+  {{- end }}
+  {{- if ne (len .Values.shardController.shardComponentsConfigMap.data) 0 }}
+        - --shard-components-config={{ .Values.shardController.shardComponentsConfigMap.name }}
+  {{- end }}
+  {{- end }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.shardController.manager.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.shardController.manager) }}"
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.shardController.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.shardController.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.shardController.manager.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.shardController.podSecurityContext | nindent 8 }}
+      {{- with .Values.shardController.manager.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: shard-controller
+      terminationGracePeriodSeconds: 10
+{{ end }}
+{{- if .Values.techsupportController.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: techsupport-controller
+  namespace: {{ .Release.Namespace | quote }}
+  {{- with .Values.techsupportController.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  labels:
+    control-plane: techsupport
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: techsupport
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: techsupport
+        {{- with .Values.techsupportController.labels }}
+        {{- range $key, $value := . }}
+          {{ $key }}: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.techsupportController.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.techsupportController.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.techsupportController.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.techsupportController) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+      - args:
+      {{- range .Values.techsupportController.controller.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.techsupportController.controller.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.techsupportController.controller.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.techsupportController.controller) }}"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: controller
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.techsupportController.controller.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.techsupportController.controller.containerSecurityContext | nindent 10 }}
+        {{- with .Values.techsupportController.controller.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.techsupportController.podSecurityContext | nindent 8 }}
+      {{- with .Values.techsupportController.controller.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: techsupport-controller
+      terminationGracePeriodSeconds: 10
+{{- end }}
+{{- if .Values.mcpServer.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- with .Values.mcpServer.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  name: mcp-server
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    control-plane: mcp-server
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: mcp-server
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: mcp-server
+        {{- with .Values.mcpServer.labels }}
+        {{- range $key, $value := . }}
+          {{ $key }}: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.mcpServer.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      annotations:
+        kubectl.kubernetes.io/default-container: controller
+        {{- with .Values.mcpServer.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mcpServer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.mcpServer) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+      - args:
+      {{- range .Values.mcpServer.controller.args }}
+        - {{ . }}
+      {{- end }}
+      {{- range $key, $value := .Values.mcpServer.controller.extraArgs }}
+        {{- if $value }}
+        - --{{ $key }}={{ $value }}
+        {{- else }}
+        - --{{ $key }}
+        {{- end }}
+      {{- end }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        {{- with .Values.mcpServer.controller.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.mcpServer.controller) }}"
+        imagePullPolicy: {{ .Values.mcpServer.controller.imagePullPolicy }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: mcp
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: controller
+        ports:
+        - containerPort: 8080
+          name: mcp
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: mcp
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.mcpServer.controller.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.mcpServer.controller.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        {{- with .Values.mcpServer.controller.extraVolumes }}
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.mcpServer.podSecurityContext | nindent 8 }}
+      serviceAccountName: mcp-server
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      {{- with .Values.mcpServer.controller.extraVolumes }}
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+{{- end }}
+{{- if .Values.clusterInventory.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  {{- with .Values.clusterInventory.annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+  name: clusterinventory-controller
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    control-plane: clusterinventory-controller
+  {{- include "projectsveltos.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: clusterinventory-controller
+    {{- include "projectsveltos.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        control-plane: clusterinventory-controller
+        {{- with .Values.clusterInventory.labels }}
+        {{- range $key, $value := . }}
+          {{ $key }}: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+      {{- include "projectsveltos.selectorLabels" . | nindent 8 }}
+      {{- with .Values.clusterInventory.podLabels }}
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+        {{- with .Values.clusterInventory.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.clusterInventory.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.clusterInventory) }}
+      nodeSelector:
+        {{- . | nindent 8 }}
+      {{- end }}
+      containers:
+      - args: {{- toYaml .Values.clusterInventory.manager.args | nindent 8 }}
+        command:
+        - /manager
+        env:
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.memory
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: "0"
+              resource: limits.cpu
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: "{{ include "projectsveltos.image" (dict "ctx" . "component" .Values.clusterInventory.manager) }}"
+        imagePullPolicy: {{ .Values.clusterInventory.manager.imagePullPolicy }}
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: metrics
+          protocol: TCP
+        - containerPort: 9440
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: healthz
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {{- toYaml .Values.clusterInventory.manager.resources | nindent 10 }}
+        securityContext: {{- toYaml .Values.clusterInventory.manager.containerSecurityContext | nindent 10 }}
+        {{- with .Values.clusterInventory.extraVolumes }}
+        volumeMounts:
+{{ include "projectsveltos.extraVolumeMounts" . | nindent 8 }}
+        {{- end }}
+      securityContext: {{- toYaml .Values.clusterInventory.podSecurityContext | nindent 8 }}
+      {{- with .Values.clusterInventory.extraVolumes }}
+      volumes:
+{{ include "projectsveltos.extraVolumes" . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: clusterinventory-controller
+      terminationGracePeriodSeconds: 10
+{{- end }}
