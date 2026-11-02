@@ -1,5 +1,5 @@
 global:
-  registry: docker.io
+  registry: gsoci.azurecr.io/giantswarm
   useDigest: false
   capiOnboardAnnotation: ""
   imagePullSecrets: []
@@ -697,7 +697,7 @@ prometheus:
 agent:
   managementCluster: false
 telemetry:
-  disabled: false
+  disabled: true
 defaultClassifier:
   annotations: {}
   labels: {}

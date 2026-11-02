@@ -1,0 +1,4 @@
+checks:
+  exclude:
+  # incorrectly detects this on test pods when they have pod scope securityContext
+  - no-read-only-root-fs
