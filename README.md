@@ -40,9 +40,8 @@ pull request for a new upstream `projectsveltos-X.Y.Z` tag. [`post-hook.sh`](pos
 Merge the subtree pull requests with a merge commit, never squash: the next sync finds the last synced
 tag from the git note on the merge commit, and `git subtree` needs the squashed upstream commit in the history.
 
-`helm/sveltos/values.schema.json` and `helm/sveltos/README.md` are generated. If an upstream sync changes or
-conflicts with them, run `devctl gen precommit --language generic --repo-name sveltos --flavors helmchart`
-and `pre-commit run --all-files`, and commit the result.
+`helm/sveltos/values.schema.json` and `helm/sveltos/README.md` come from upstream, keep them unchanged.
+If you add a value, add it to the schema too.
 
 ## Credit
 
