@@ -1,0 +1,20 @@
+apiVersion: v2
+name: projectsveltos
+description: Projectsveltos helm chart for Kubernetes
+type: application
+version: 1.16.1
+# renovate: docker=docker.io/projectsveltos/addon-controller
+appVersion: "v1.16.1"
+kubeVersion: ">=1.25.0-0"
+home: https://projectsveltos.github.io/helm-charts/
+sources:
+  - https://github.com/projectsveltos/
+  - https://github.com/projectsveltos/helm-charts
+icon: https://github.com/projectsveltos/sveltos/raw/main/docs/assets/logo.png
+maintainers:
+  - name: Gianluca Mardente
+    email: gianluca@projectsveltos.io
+    url: https://github.com/gianlucam76
+  - name: Jan-Otto Kröpke
+    email: github@jkroepke.de
+    url: https://github.com/jkroepke
