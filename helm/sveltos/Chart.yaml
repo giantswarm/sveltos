@@ -1,38 +1,37 @@
-# See https://docs.giantswarm.io/reference/platform-api/chart-metadata/
-# for details and background.
-
 apiVersion: v2
-
-# Version of the packaged app
-appVersion: 0.0.1
-
-# Make sure your name DOES NOT end in "app" or "-app".
 name: sveltos
-
-# Please describe what the app provides in a sentence or two.
-description: Please add description
-
-# URL of the GitHub repository that is the source of this Chart.yaml file.
+description: 'Giant Swarm copy of the upstream Sveltos (projectsveltos) Helm chart: Kubernetes add-on and configuration management across clusters'
+type: application
+version: 1.16.1
+# renovate: docker=docker.io/projectsveltos/addon-controller
+appVersion: "v1.16.1"
+kubeVersion: ">=1.25.0-0"
 home: https://github.com/giantswarm/sveltos
-
-# Default Giant Swarm icon, so that the first build passes the icon checks.
-# Replace it with the app's own icon: add it to https://github.com/giantswarm/web-assets
-# and set the final URL here.
-icon: https://s.giantswarm.io/app-icons/giantswarm/1/light.svg
-
 sources:
-- https://github.com/some-org/some-repo
-version: 0.0.0-dev
+  - https://github.com/giantswarm/sveltos
+  - https://github.com/projectsveltos/helm-charts
+icon: https://s.giantswarm.io/app-icons/sveltos/1/light.svg
+maintainers:
+  - name: Gianluca Mardente
+    email: gianluca@projectsveltos.io
+    url: https://github.com/gianlucam76
+  - name: Jan-Otto Kröpke
+    email: github@jkroepke.de
+    url: https://github.com/jkroepke
+keywords:
+  - sveltos
+  - addons
+  - multi-cluster
+  - gitops
+upstreamChartVersion: 1.16.1
 annotations:
-  # Adapt to 'giantswarm' if this application is not to be deployed by customers
   io.giantswarm.application.audience: all
-  # Adapt to 'true' if Giant Swarm takes responsibility for this app where it's deplyed
   io.giantswarm.application.managed: "false"
-  # Team owning this app, used through .Chart.Annotations in templates/_helpers.tpl.
-  # honeybadger is a placeholder for the team's short name, e.g. 'shield' for team-shield.
-  io.giantswarm.application.team: "honeybadger"
-  # Metadata for artifacthub.io, where Giant Swarm publishes all public charts
-  # (see https://github.com/giantswarm/roadmap/issues/3940)
+  io.giantswarm.application.team: honeybadger
+  io.giantswarm.application.restrictions.cluster-singleton: "true"
+  io.giantswarm.application.restrictions.namespace-singleton: "true"
+  io.giantswarm.application.upstream-chart-url: https://github.com/projectsveltos/helm-charts/tree/main/charts/projectsveltos
+  io.giantswarm.application.upstream-chart-version: 1.16.1
   artifacthub.io/license: Apache-2.0
   artifacthub.io/links: |
     - name: Support
