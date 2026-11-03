@@ -2,3 +2,10 @@ checks:
   exclude:
   # incorrectly detects this on test pods when they have pod scope securityContext
   - no-read-only-root-fs
+  # upstream sets only a memory request for addon-controller, crd-manager and register-mgmt-cluster;
+  # we keep upstream values instead of guessing limits
+  - unset-cpu-requirements
+  - unset-memory-requirements
+  # upstream techsupport-controller probes port 8081 without declaring it; kubelet probes it anyway
+  - liveness-port
+  - readiness-port
