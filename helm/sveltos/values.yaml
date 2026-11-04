@@ -241,7 +241,7 @@ clusterInventory:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/clusterinventory-controller
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:f350bf99347958db8e9f462946b231d867c762168d14c4f68693dbf90db75299
     imagePullPolicy: IfNotPresent
     # @schema skipProperties:true;additionalProperties:true
