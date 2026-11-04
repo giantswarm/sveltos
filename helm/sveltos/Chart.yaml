@@ -1,16 +1,16 @@
 apiVersion: v2
-name: sveltos
-description: 'Giant Swarm copy of the upstream Sveltos (projectsveltos) Helm chart: Kubernetes add-on and configuration management across clusters'
+name: projectsveltos
+description: Projectsveltos helm chart for Kubernetes
 type: application
-version: 1.16.1
+version: 1.17.0
 # renovate: docker=docker.io/projectsveltos/addon-controller
-appVersion: "v1.16.1"
+appVersion: "v1.17.0"
 kubeVersion: ">=1.25.0-0"
-home: https://github.com/giantswarm/sveltos
+home: https://projectsveltos.github.io/helm-charts/
 sources:
-  - https://github.com/giantswarm/sveltos
+  - https://github.com/projectsveltos/
   - https://github.com/projectsveltos/helm-charts
-icon: https://s.giantswarm.io/app-icons/sveltos/1/light.svg
+icon: https://github.com/projectsveltos/sveltos/raw/main/docs/assets/logo.png
 maintainers:
   - name: Gianluca Mardente
     email: gianluca@projectsveltos.io
@@ -18,21 +18,3 @@ maintainers:
   - name: Jan-Otto Kröpke
     email: github@jkroepke.de
     url: https://github.com/jkroepke
-keywords:
-  - sveltos
-  - addons
-  - multi-cluster
-  - gitops
-upstreamChartVersion: 1.16.1
-annotations:
-  io.giantswarm.application.audience: all
-  io.giantswarm.application.managed: "false"
-  io.giantswarm.application.team: honeybadger
-  io.giantswarm.application.restrictions.cluster-singleton: "true"
-  io.giantswarm.application.restrictions.namespace-singleton: "true"
-  io.giantswarm.application.upstream-chart-url: https://github.com/projectsveltos/helm-charts/tree/main/charts/projectsveltos
-  io.giantswarm.application.upstream-chart-version: 1.16.1
-  artifacthub.io/license: Apache-2.0
-  artifacthub.io/links: |
-    - name: Support
-      url: https://github.com/giantswarm/sveltos/issues

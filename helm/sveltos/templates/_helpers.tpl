@@ -40,7 +40,6 @@ helm.sh/chart: {{ include "projectsveltos.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-application.giantswarm.io/team: {{ index .Chart.Annotations "io.giantswarm.application.team" | quote }}
 {{- with .Values.global.additionalLabels }}
 {{ toYaml . | indent 0 }}
 {{- end }}
