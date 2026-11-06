@@ -42,3 +42,11 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
         args: [--strict]
+
+  # Bash/shell hooks
+  - repo: https://github.com/detailyang/pre-commit-shell
+    rev: 'v1.0.6'
+    hooks:
+      - id: shell-lint
+        args: [ --format=json ]
+        exclude: ".*\\.template"
