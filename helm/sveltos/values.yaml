@@ -412,7 +412,7 @@ crdManagerJob:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/crd-manager
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:b723bd22df0b1152a23a160e6c321eae9aa51cfd8a7d6de84d93b2b115219117
     imagePullPolicy: IfNotPresent
     nodeSelector: {}
