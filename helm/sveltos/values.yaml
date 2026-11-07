@@ -302,7 +302,7 @@ eventManager:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/event-manager
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:f5a52803beba14b4781c0e4d6213b41ec81b56f2d7e034df5e29ebed0fa33308
     # @schema skipProperties:true;additionalProperties:true
     # -- Resource requests and limits
