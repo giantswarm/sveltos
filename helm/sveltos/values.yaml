@@ -161,7 +161,22 @@ classifierManager:
   podAnnotations: {}
   agentPatchConfigMap:
     name: sveltos-agent-config
-    data: {}
+    data:
+      # Giant Swarm: the sveltos-agent in a workload cluster only talks to that cluster's API server.
+      # This label puts its namespace under the network-policies standard allow for API server
+      # egress, so the agent keeps working when the clusterwide default deny is on.
+      namespace-allow-kube-apiserver: |-
+        patch: |-
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: projectsveltos
+            labels:
+              policy.giantswarm.io/allow-kube-apiserver: "true"
+        target:
+          version: v1
+          kind: Namespace
+          name: projectsveltos
   agentPatchSveltosApplierConfigMap:
     name: sveltos-applier-config
     data: {}
