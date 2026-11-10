@@ -13,12 +13,14 @@ Differences from upstream:
   (`global.registry`),
 - telemetry is disabled (`telemetry.disabled: true`),
 - every resource has the `application.giantswarm.io/team` label,
-- the agent, drift-detection-manager and applier patch ConfigMaps label the Sveltos namespace in every managed
-  cluster with `policy.giantswarm.io/allow-kube-apiserver: "true"`, so the agents keep their API server access
-  under the network-policies clusterwide default deny. All three must keep the patch, since each deploys that
-  namespace. A cluster with its own `config-override-ref` ConfigMap has to repeat it. It does not cover the agent in
-  the management cluster, report mode `AgentSendReportsNoGateway` or pull mode, which need egress to the management
-  cluster.
+- the agent and drift-detection-manager patch ConfigMaps label the Sveltos namespace in every managed cluster with
+  `policy.giantswarm.io/allow-kube-apiserver: "true"`, so both keep their API server access under the
+  network-policies clusterwide default deny. Both ConfigMaps must keep the same patch, since both components apply
+  that namespace with the same field manager: override both or neither. A cluster with its own `config-override-ref`
+  ConfigMap has to repeat it. It does not cover the agent in the management cluster, report mode
+  `AgentSendReportsNoGateway` or pull mode, which need egress to the management cluster. The patch replaces the
+  namespace's labels, so check on every upstream sync that the agent and drift-detection-manager Namespace manifests
+  still carry none.
 
 The dashboard chart is in [giantswarm/sveltos-dashboard](https://github.com/giantswarm/sveltos-dashboard).
 

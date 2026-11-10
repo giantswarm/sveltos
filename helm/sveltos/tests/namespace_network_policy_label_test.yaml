@@ -2,8 +2,10 @@
 suite: namespace label for the network-policies clusterwide default deny
 templates:
   - templates/configmap.yaml
+  - templates/deployment.yaml
 tests:
-  - it: patches the Sveltos namespace with the allow-kube-apiserver label in all three patch ConfigMaps
+  - it: patches the Sveltos namespace in the agent and drift-detection-manager patch ConfigMaps
+    template: templates/configmap.yaml
     documentSelector:
       path: kind
       value: ConfigMap
@@ -11,11 +13,26 @@ tests:
       skipEmptyTemplates: true
     asserts:
       - hasDocuments:
-          count: 3
+          count: 2
           filterAware: true
       - matchRegex:
           path: data["namespace-allow-kube-apiserver"]
           pattern: 'policy\.giantswarm\.io/allow-kube-apiserver: "true"'
       - matchRegex:
           path: data["namespace-allow-kube-apiserver"]
-          pattern: 'kind: Namespace'
+          pattern: 'target:\n  version: v1\n  kind: Namespace$'
+  - it: passes both patch ConfigMaps to their controllers
+    template: templates/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --drift-detection-config=drift-detection-config
+        documentSelector:
+          path: metadata.name
+          value: addon-controller
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --sveltos-agent-config=sveltos-agent-config
+        documentSelector:
+          path: metadata.name
+          value: classifier-manager

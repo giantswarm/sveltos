@@ -119,12 +119,15 @@ addonController:
   driftDetectionManagerPatchConfigMap:
     name: drift-detection-config
     data:
-      # Giant Swarm: the sveltos-agent in a workload cluster talks to that cluster's API server. This
-      # label puts the Sveltos namespace there under the network-policies standard allow for API
-      # server egress, so the agent keeps working when the clusterwide default deny is on. The
-      # addon-controller and the applier deploy the same namespace, so their patch ConfigMaps carry
-      # the same patch, or their apply would remove the label again. It only targets the Namespace
-      # kind, since the agent manifest has one and it takes the release namespace's name.
+      # Giant Swarm: the sveltos-agent and drift-detection-manager in a workload cluster talk to
+      # that cluster's API server. This label puts the Sveltos namespace there under the
+      # network-policies standard allow for API server egress, so they keep working when the
+      # clusterwide default deny is on. classifier (agent) and addon-controller (drift detection)
+      # both apply that namespace with the same field manager, so both patch ConfigMaps carry the
+      # same patch, or one apply would remove the label again. Override both or neither. The target
+      # has no name, since the namespace takes the release namespace's name. The add replaces
+      # /metadata/labels, which is fine while the upstream Namespace manifests carry no labels:
+      # check that on every upstream sync.
       namespace-allow-kube-apiserver: &namespaceAllowKubeAPIServer |-
         patch: |-
           - op: add
@@ -181,9 +184,7 @@ classifierManager:
       namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
   agentPatchSveltosApplierConfigMap:
     name: sveltos-applier-config
-    data:
-      # Giant Swarm: see addonController.driftDetectionManagerPatchConfigMap.
-      namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
+    data: {}
   manager:
     args:
       - --diagnostics-address=:8443
