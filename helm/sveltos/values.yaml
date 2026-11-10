@@ -184,6 +184,8 @@ classifierManager:
       namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
   agentPatchSveltosApplierConfigMap:
     name: sveltos-applier-config
+    # Giant Swarm: no namespace patch here on purpose. The applier is pull mode only, and its Namespace
+    # already has a label that the add would replace.
     data: {}
   manager:
     args:
