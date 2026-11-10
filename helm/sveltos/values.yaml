@@ -118,7 +118,22 @@ addonController:
         memory: 512Mi
   driftDetectionManagerPatchConfigMap:
     name: drift-detection-config
-    data: {}
+    data:
+      # Giant Swarm: the sveltos-agent in a workload cluster talks to that cluster's API server. This
+      # label puts the Sveltos namespace there under the network-policies standard allow for API
+      # server egress, so the agent keeps working when the clusterwide default deny is on. The
+      # addon-controller and the applier deploy the same namespace, so their patch ConfigMaps carry
+      # the same patch, or their apply would remove the label again. It only targets the Namespace
+      # kind, since the agent manifest has one and it takes the release namespace's name.
+      namespace-allow-kube-apiserver: &namespaceAllowKubeAPIServer |-
+        patch: |-
+          - op: add
+            path: /metadata/labels
+            value:
+              policy.giantswarm.io/allow-kube-apiserver: "true"
+        target:
+          version: v1
+          kind: Namespace
   # @schema skipProperties:true;additionalProperties:true
   # -- The SecurityContext for the pod
   podSecurityContext:
@@ -162,24 +177,13 @@ classifierManager:
   agentPatchConfigMap:
     name: sveltos-agent-config
     data:
-      # Giant Swarm: the sveltos-agent in a workload cluster only talks to that cluster's API server.
-      # This label puts its namespace under the network-policies standard allow for API server
-      # egress, so the agent keeps working when the clusterwide default deny is on.
-      namespace-allow-kube-apiserver: |-
-        patch: |-
-          apiVersion: v1
-          kind: Namespace
-          metadata:
-            name: projectsveltos
-            labels:
-              policy.giantswarm.io/allow-kube-apiserver: "true"
-        target:
-          version: v1
-          kind: Namespace
-          name: projectsveltos
+      # Giant Swarm: see addonController.driftDetectionManagerPatchConfigMap.
+      namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
   agentPatchSveltosApplierConfigMap:
     name: sveltos-applier-config
-    data: {}
+    data:
+      # Giant Swarm: see addonController.driftDetectionManagerPatchConfigMap.
+      namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
   manager:
     args:
       - --diagnostics-address=:8443

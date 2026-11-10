@@ -1,0 +1,21 @@
+# $schema: https://raw.githubusercontent.com/helm-unittest/helm-unittest/refs/heads/main/schema/helm-testsuite.json
+suite: namespace label for the network-policies clusterwide default deny
+templates:
+  - templates/configmap.yaml
+tests:
+  - it: patches the Sveltos namespace with the allow-kube-apiserver label in all three patch ConfigMaps
+    documentSelector:
+      path: kind
+      value: ConfigMap
+      matchMany: true
+      skipEmptyTemplates: true
+    asserts:
+      - hasDocuments:
+          count: 3
+          filterAware: true
+      - matchRegex:
+          path: data["namespace-allow-kube-apiserver"]
+          pattern: 'policy\.giantswarm\.io/allow-kube-apiserver: "true"'
+      - matchRegex:
+          path: data["namespace-allow-kube-apiserver"]
+          pattern: 'kind: Namespace'

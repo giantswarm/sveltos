@@ -12,7 +12,13 @@ Differences from upstream:
 - all images, including the agents the controllers deploy at runtime, come from `gsoci.azurecr.io/giantswarm/projectsveltos/`
   (`global.registry`),
 - telemetry is disabled (`telemetry.disabled: true`),
-- every resource has the `application.giantswarm.io/team` label.
+- every resource has the `application.giantswarm.io/team` label,
+- the agent, drift-detection-manager and applier patch ConfigMaps label the Sveltos namespace in every managed
+  cluster with `policy.giantswarm.io/allow-kube-apiserver: "true"`, so the agents keep their API server access
+  under the network-policies clusterwide default deny. All three must keep the patch, since each deploys that
+  namespace. A cluster with its own `config-override-ref` ConfigMap has to repeat it. It does not cover the agent in
+  the management cluster, report mode `AgentSendReportsNoGateway` or pull mode, which need egress to the management
+  cluster.
 
 The dashboard chart is in [giantswarm/sveltos-dashboard](https://github.com/giantswarm/sveltos-dashboard).
 
