@@ -118,7 +118,25 @@ addonController:
         memory: 512Mi
   driftDetectionManagerPatchConfigMap:
     name: drift-detection-config
-    data: {}
+    data:
+      # Giant Swarm: the sveltos-agent and drift-detection-manager in a workload cluster talk to
+      # that cluster's API server. This label puts the Sveltos namespace there under the
+      # network-policies standard allow for API server egress, so they keep working when the
+      # clusterwide default deny is on. classifier (agent) and addon-controller (drift detection)
+      # both apply that namespace with the same field manager, so both patch ConfigMaps carry the
+      # same patch, or one apply would remove the label again. Override both or neither. The target
+      # has no name, since the namespace takes the release namespace's name. The add replaces
+      # /metadata/labels, which is fine while the upstream Namespace manifests carry no labels:
+      # check that on every upstream sync.
+      namespace-allow-kube-apiserver: &namespaceAllowKubeAPIServer |-
+        patch: |-
+          - op: add
+            path: /metadata/labels
+            value:
+              policy.giantswarm.io/allow-kube-apiserver: "true"
+        target:
+          version: v1
+          kind: Namespace
   # @schema skipProperties:true;additionalProperties:true
   # -- The SecurityContext for the pod
   podSecurityContext:
@@ -161,9 +179,13 @@ classifierManager:
   podAnnotations: {}
   agentPatchConfigMap:
     name: sveltos-agent-config
-    data: {}
+    data:
+      # Giant Swarm: see addonController.driftDetectionManagerPatchConfigMap.
+      namespace-allow-kube-apiserver: *namespaceAllowKubeAPIServer
   agentPatchSveltosApplierConfigMap:
     name: sveltos-applier-config
+    # Giant Swarm: no namespace patch here on purpose. The applier is pull mode only, and its Namespace
+    # already has a label that the add would replace.
     data: {}
   manager:
     args:
