@@ -471,7 +471,7 @@ registerMgmtClusterJob:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/register-mgmt-cluster
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:3d7639cd680f7715627f77a8cb993652b3c710f96228f9c09532ef8d09a94ba8
     imagePullPolicy: IfNotPresent
     nodeSelector: {}
