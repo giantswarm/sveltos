@@ -672,7 +672,7 @@ mcpServer:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/mcp-server
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:349d9fd4f2654a69ff1151c12b03057f05a877059a05d58a98463fcd775e6e94
     # @schema skipProperties:true;additionalProperties:true
     # -- Resource requests and limits
