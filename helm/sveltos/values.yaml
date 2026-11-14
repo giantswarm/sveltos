@@ -388,7 +388,7 @@ hcManager:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/healthcheck-manager
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:564304068dd7b2c176df65915d35081fa6e1c92a7c47ab5483e29071aaacbf68
     # @schema skipProperties:true;additionalProperties:true
     # -- Resource requests and limits
