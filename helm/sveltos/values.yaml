@@ -34,7 +34,7 @@ accessManager:
       registry: ""
       # -- Docker image repository
       repository: projectsveltos/access-manager
-      tag: v1.16.0
+      tag: v1.17.0
       digest: sha256:3518240977ab0ec695e28236cb13bc055591da8dc5f641fce3697a25863fa0fb
     # @schema skipProperties:true;additionalProperties:true
     # -- Resource requests and limits
