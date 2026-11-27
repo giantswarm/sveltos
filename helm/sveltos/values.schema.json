@@ -240,6 +240,15 @@
             }
           }
         },
+        "rbac": {
+          "type": "object",
+          "properties": {
+            "impersonate": {
+              "description": "Set to false to drop the impersonate verb from the addon-controller ClusterRole. The addon-controller impersonates a ServiceAccount only when deploying to the management cluster a ClusterProfile or Profile carrying the projectsveltos.io/serviceaccount-name and projectsveltos.io/serviceaccount-namespace labels (multi-tenancy). Keep it true if those labels are used.",
+              "type": "boolean"
+            }
+          }
+        },
         "roleExtra": {
           "type": "object",
           "properties": {
@@ -309,6 +318,10 @@
     "agent": {
       "type": "object",
       "properties": {
+        "enabled": {
+          "description": "Set to false to not deploy sveltos-agent. The classifier-manager, addon-controller and shard-controller are started with the disable-sveltos-agent flag set, and event-manager and healthcheck-manager are not deployed since they only work with sveltos-agent. Classifier, EventSource/EventTrigger, HealthCheck/ClusterHealthCheck and the reloader feature of ClusterProfile/Profile do not work. Turning it off does not remove a sveltos-agent that is already deployed.",
+          "type": "boolean"
+        },
         "managementCluster": {
           "type": "boolean"
         }
