@@ -40,7 +40,6 @@ helm.sh/chart: {{ include "projectsveltos.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-application.giantswarm.io/team: {{ index .Chart.Annotations "io.giantswarm.application.team" | quote }}
 {{- with .Values.global.additionalLabels }}
 {{ toYaml . | indent 0 }}
 {{- end }}
@@ -140,4 +139,26 @@ Usage: include "projectsveltos.nodeSelector" (dict "ctx" . "component" .Values.a
 {{- define "projectsveltos.nodeSelector" -}}
 {{- $nodeSelector := merge (deepCopy (.component.nodeSelector | default dict)) (.ctx.Values.global.nodeSelector | default dict) -}}
 {{- with $nodeSelector }}{{ toYaml . }}{{ end }}
+{{- end }}
+
+{{/*
+Renders "true" when the register-mgmt-cluster Job does not register the management cluster:
+the skip-self-registration key of extraArgs (rendered by the Job as a bare flag, so a false or empty
+value skips too, only the string "false" does not) or a --skip-self-registration argument in args.
+Renders nothing otherwise.
+*/}}
+{{- define "projectsveltos.registerMgmtCluster.skipSelfRegistration" -}}
+{{- $job := .Values.registerMgmtClusterJob.registerMgmtCluster -}}
+{{- $skip := false -}}
+{{- $extraArgs := $job.extraArgs | default dict -}}
+{{- if hasKey $extraArgs "skip-self-registration" -}}
+{{- $value := index $extraArgs "skip-self-registration" -}}
+{{- $skip = or (not $value) (ne (toString $value) "false") -}}
+{{- end -}}
+{{- range $job.args -}}
+{{- if or (eq . "--skip-self-registration") (eq . "--skip-self-registration=true") -}}
+{{- $skip = true -}}
+{{- end -}}
+{{- end -}}
+{{- if $skip }}true{{ end -}}
 {{- end }}
